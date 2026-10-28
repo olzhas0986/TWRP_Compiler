@@ -4,7 +4,7 @@ set -e
 # Exports
 export VENDOR=xiaomi
 export DEVICE=munch
-export DTLINK=https://github.com/olzhas0986/twrp_device_xiaomi_munch
+export DTLINK=https://github.com/olzhas0986/twrpdt
 
 # Twrp folder
 mkdir -p twrp && cd twrp
