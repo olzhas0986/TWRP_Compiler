@@ -19,4 +19,4 @@ repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 git clone $DTLINK device/${VENDOR}/${DEVICE}
 
 # Build TWRP
-. build/envsetup.sh && lunch twrp_${DEVICE}-eng && mka bootimage -j$(nproc --all)
+. build/envsetup.sh && export ALLOW_MISSING_DEPENDENCIES=true && lunch twrp_${DEVICE}-eng && mka bootimage -j$(nproc --all)
