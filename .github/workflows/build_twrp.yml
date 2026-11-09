@@ -1,56 +1,93 @@
-name: TWRP Compiler
+name: AERA A16 - munch
 
 on:
   workflow_dispatch:
+    inputs:
+      dt_ref:
+        description: Device tree branch, tag or commit SHA
+        required: true
+        default: android-12.1
+        type: string
+      sync_jobs:
+        description: Parallel repo sync jobs
+        required: true
+        default: '4'
+        type: string
+      build_jobs:
+        description: Parallel build jobs
+        required: true
+        default: '4'
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-
-    container:
-      image: ubuntu:20.04
-      options: --privileged
+    timeout-minutes: 360
+    env:
+      DEVICE: munch
+      DT_REF: ${{ inputs.dt_ref }}
+      SYNC_JOBS: ${{ inputs.sync_jobs }}
+      BUILD_JOBS: ${{ inputs.build_jobs }}
+      SOURCE_DIR: ${{ github.workspace }}/aera
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout compiler
+        uses: actions/checkout@v4
 
-    - name: Free Disk Space
-      run: |
-        apt-get update && apt-get install -y sudo
-        sudo apt-get remove -y '^ghc-.*' '^dotnet-.*' '^llvm-.*' 'php.*' 'node.*' 'gfortran.*' || true
-        sudo apt-get autoremove -y
-        sudo apt-get clean
-        rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost || true
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost
+          sudo apt-get clean
+          df -h "$GITHUB_WORKSPACE"
 
-    - name: Install Base Utilities & Dependencies
-      run: |
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update
-        apt-get install -y \
-          git-core gnupg flex bison build-essential zip curl zlib1g-dev \
-          libc6-dev-i386 libncurses5 x11proto-core-dev libx11-dev libgl1-mesa-dev \
-          libxml2-utils xsltproc unzip fontconfig python3 python-is-python3 sudo bash ca-certificates rsync
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git-core gnupg flex bison build-essential zip curl zlib1g-dev \
+            libc6-dev-i386 lib32z1-dev libncurses5 libncurses-dev \
+            x11proto-core-dev libx11-dev libgl1-mesa-dev \
+            libxml2-utils xsltproc unzip fontconfig python3 python-is-python3 \
+            rsync bc ccache lz4 zstd libssl-dev libelf-dev \
+            ca-certificates jq
+          sudo curl --fail --location --retry 3 \
+            https://storage.googleapis.com/git-repo-downloads/repo \
+            -o /usr/local/bin/repo
+          sudo chmod a+rx /usr/local/bin/repo
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
 
-        mkdir -p /usr/local/bin
-        curl https://storage.googleapis.com/git-repo-downloads/repo > /usr/local/bin/repo
-        chmod a+rx /usr/local/bin/repo
+      - name: Build AERA recovery-as-boot
+        run: bash ./build.sh
 
-    - name: Run Build Script
-      run: |
-        chmod +x ./build.sh
-        ./build.sh
+      - name: Upload recovery images
+        uses: actions/upload-artifact@v4
+        with:
+          name: AERA-A16-munch-${{ github.run_number }}
+          path: |
+            aera/out/target/product/munch/boot.img
+            aera/out/target/product/munch/AERA*.img
+            aera/out/target/product/munch/AERA*.zip
+          if-no-files-found: error
+          compression-level: 0
 
-    - name: Export DEVICE Variable
-      run: |
-        DEVICE=$(grep 'export DEVICE=' build.sh | cut -d'=' -f2)
-        echo "DEVICE=$DEVICE" >> $GITHUB_ENV
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: TWRP-${{ env.DEVICE }}-boot
-        path: twrp/out/target/product/${{ env.DEVICE }}/boot.img
-        if-no-files-found: warn
+      - name: Upload build logs and source revisions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AERA-munch-logs-${{ github.run_number }}
+          path: |
+            aera/init.log
+            aera/sync.log
+            aera/build.log
+            aera/build-info.txt
+            aera/source-manifest.xml
+            aera/out/error.log
+            aera/out/soong/soong.log
+            aera/out/verbose.log.gz
+          if-no-files-found: warn
