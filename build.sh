@@ -17,14 +17,8 @@ repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 # Clone device repos
 git clone https://github.com/olzhas0986/twrp_device_xiaomi_munch -b new device/${VENDOR}/${DEVICE}
 
-git config --global user.email test@test.com
-git config --global user.name test
-
-cd bootable/recovery
-git fetch https://github.com/olzhas0986/android_bootable_recovery.git --depth 2
-git cherry-pick cedd2aaa2184dcc27af380752b5112a169fbe927
-git cherry-pick 73761cd65f3e0ea7190f36edd4c2dc7973a4f80d
-cd ../..
+rm -rf bootable/recovery
+git clone https://github.com/olzhas0986/android_bootable_recovery.git bootable/recovery
 
 # Build TWRP
 . build/envsetup.sh && export ALLOW_MISSING_DEPENDENCIES=true && lunch twrp_${DEVICE}-eng && mka adbd bootimage -j$(nproc --all)
