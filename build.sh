@@ -23,6 +23,7 @@ git config --global user.name test
 cd bootable/recovery
 git fetch https://github.com/olzhas0986/android_bootable_recovery.git --depth 2
 git cherry-pick cedd2aaa2184dcc27af380752b5112a169fbe927
+git cherry-pick 73761cd65f3e0ea7190f36edd4c2dc7973a4f80d
 cd ../..
 
 # Build TWRP
